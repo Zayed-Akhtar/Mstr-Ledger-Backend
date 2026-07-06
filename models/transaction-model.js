@@ -9,11 +9,15 @@ credit: {
     type: Number,
     default: 0
   },
+  transactionDate: {
+    type: Date,
+    required:true
+  },
   balance: {
     type: Number,
     default: 0
   },
-  decription:{
+  description:{
     type:String,
     required:true
   },
