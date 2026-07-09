@@ -92,10 +92,17 @@ module.exports.getTransactions = async (req, res) => {
         const filter = {};
 
         if (partyCode || name || phoneNumber) {
-            const partyFilter = {};
-            if (partyCode) partyFilter.partyCode = { $regex: escapeRegex(partyCode), $options: 'i' };
-            if (name) partyFilter.name = { $regex: escapeRegex(name), $options: 'i' };
-            if (phoneNumber) partyFilter.phoneNumber = { $regex: escapeRegex(phoneNumber), $options: 'i' };
+            const partyFilter = { $or: [] };
+
+            if (partyCode) {
+                partyFilter.$or.push({ partyCode: { $regex: escapeRegex(partyCode), $options: 'i' } });
+            }
+            if (name) {
+                partyFilter.$or.push({ name: { $regex: escapeRegex(name), $options: 'i' } });
+            }
+            if (phoneNumber) {
+                partyFilter.$or.push({ phoneNumber: { $regex: escapeRegex(phoneNumber), $options: 'i' } });
+            }
 
             const parties = await partyModel.find(partyFilter).select('_id');
             const partyIds = parties.map((party) => party._id);
@@ -110,7 +117,7 @@ module.exports.getTransactions = async (req, res) => {
         const transactions = await transactionModel.find(filter)
             .sort({ createdAt: -1 })
             .limit(50)
-            .populate('party', 'partyCode name phoneNumber');
+            .populate('party', 'partyCode name phoneNumber area');
 
         return successResponse(res, 'Transactions fetched successfully', transactions);
     } catch (error) {
