@@ -27,7 +27,6 @@ module.exports.createTransaction = async (req, res) => {
             await partyModel.findByIdAndUpdate(partyId, {
                 $push: { transactions: newTransactionWithBalance._id }
             });
-            return successResponse(res, "Transaction created successfully", newTransactionWithBalance);
         }
         else {
           //Logic for creating new transaction
@@ -35,9 +34,17 @@ module.exports.createTransaction = async (req, res) => {
             const party = await partyModel.findOne({ _id: partyId });
             party.transactions.push(newTransaction._id);
             await party.save();
-            return successResponse(res, "Transaction created successfully", newTransaction);
         }
 
+        // Fetch and return the updated party with all transactions
+        const updatedParty = await partyModel.findById(partyId)
+            .populate({
+                path: "transactions",
+                options: { sort: { createdAt: -1 } }
+            })
+            .select("_id partyCode name phoneNumber area transactions");
+
+        return successResponse(res, "Transaction created successfully", updatedParty);
 
     } catch (error) {
         return errorResponse(res, "Error creating transaction: " + error.message);
@@ -62,6 +69,34 @@ const createNewTransaction = async (credit,
     return newTransaction;
 }
 
+const updateSubsequentBalances = async (partyId) => {
+    const transactions = await transactionModel
+        .find({ party: partyId })
+        .sort({ transactionDate: 1, createdAt: 1 });
+
+    let runningBalance = 0;
+    const bulkOps = [];
+
+    for (const tx of transactions) {
+        runningBalance = runningBalance + tx.debit - tx.credit;
+
+        if (tx.balance !== runningBalance) {
+            bulkOps.push({
+                updateOne: {
+                    filter: { _id: tx._id },
+                    update: {
+                        $set: { balance: runningBalance }
+                    }
+                }
+            });
+        }
+    }
+
+    if (bulkOps.length > 0) {
+        await transactionModel.bulkWrite(bulkOps);
+    }
+};
+
 module.exports.deleteTransaction = async (req, res) => {
     try {
         const { id } = req.params;
@@ -77,7 +112,9 @@ module.exports.deleteTransaction = async (req, res) => {
             $pull: { transactions: id }
         });
 
-        return successResponse(res, "Transaction deleted successfully", transaction);
+        await updateSubsequentBalances(transaction.party);
+        const updatedPartyTransactions = await partyModel.findById(transaction.party).populate("transactions");
+        return successResponse(res, "Transaction deleted successfully", updatedPartyTransactions);
     } catch (error) {
         return errorResponse(res, "Error deleting transaction: " + error.message);
     }
