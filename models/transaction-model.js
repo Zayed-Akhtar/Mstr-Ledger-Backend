@@ -1,31 +1,53 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const transactionSchema = mongoose.Schema({
-credit: {
-    type: Number,
-    default: 0
-  },
-  debit: {
-    type: Number,
-    default: 0
-  },
-  transactionDate: {
-    type: Date,
-    required:true
-  },
-  balance: {
-    type: Number,
-    default: 0
-  },
-  description:{
-    type:String,
-    required:true
-  },
-  party :{
-    type:mongoose.Schema.Types.ObjectId,
-    ref:'Party',
-    required:true
-  }
-}, {timestamps:true});
+const transactionSchema = new mongoose.Schema({
 
-module.exports = mongoose.model('Transaction', transactionSchema);
+    transactionNumber: {
+        type: Number,
+        required: true
+    },
+
+    transactionDate: {
+        type: Date,
+        required: true
+    },
+
+    description: {
+        type: String,
+        required: true
+    },
+
+    debit: {
+        type: Number,
+        default: 0
+    },
+
+    credit: {
+        type: Number,
+        default: 0
+    },
+
+    balance: {
+        type: Number,
+        default: 0
+    },
+
+    party: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Party",
+        required: true
+    }
+
+}, { timestamps: true });
+
+transactionSchema.index(
+    {
+        party: 1,
+        transactionNumber: 1
+    },
+    {
+        unique: true
+    }
+);
+
+module.exports = mongoose.model("Transaction", transactionSchema);

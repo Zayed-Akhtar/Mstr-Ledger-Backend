@@ -1,4 +1,8 @@
 const { successResponse, errorResponse } = require("../helpers/responses");
+const {
+    recalculateBalances,
+    getPartyLedger
+} = require("../helpers/ledgerHelper");
 const partyModel = require("../models/party-model");
 const transactionModel = require("../models/transaction-model");
 
@@ -6,68 +10,60 @@ require("dotenv").config();
 
 module.exports.createTransaction = async (req, res) => {
     try {
-        const { credit, debit, description, balance, transactionDate, partyId } = req.body;
 
-        //checks if party already has existing transactions
-        const partyWithTransactions = await partyModel.findById(partyId)
-            .populate({
-                path: "transactions",
-                options: {
-                    sort: { createdAt: -1 },
-                    limit: 1
-                }
-            });
-        if (!partyWithTransactions) {
+        const {
+            credit,
+            debit,
+            description,
+            transactionDate,
+            partyId
+        } = req.body;
+
+        const party = await partyModel.findById(partyId);
+
+        if (!party) {
             return errorResponse(res, "Party not found");
         }
-        if (partyWithTransactions && partyWithTransactions.transactions.length > 0) {
-            const lastTransaction = partyWithTransactions.transactions[0];
-            const newBalance = lastTransaction.balance + debit - credit;
-            const newTransactionWithBalance = await createNewTransaction(credit, debit, description, newBalance, transactionDate, partyId);
-            await partyModel.findByIdAndUpdate(partyId, {
-                $push: { transactions: newTransactionWithBalance._id }
-            });
-        }
-        else {
-          //Logic for creating new transaction
-            const newTransaction = await createNewTransaction(credit, debit, description, balance, transactionDate, partyId);
-            const party = await partyModel.findOne({ _id: partyId });
-            party.transactions.push(newTransaction._id);
-            await party.save();
-        }
 
-        // Fetch and return the updated party with all transactions
-        const updatedParty = await partyModel.findById(partyId)
-            .populate({
-                path: "transactions",
-                options: { sort: { createdAt: -1 } }
-            })
-            .select("_id partyCode name phoneNumber area transactions");
+        // Generate transaction number
+        const lastTransaction = await transactionModel
+            .findOne({ party: partyId })
+            .sort({ transactionNumber: -1 });
 
-        return successResponse(res, "Transaction created successfully", updatedParty);
+        const nextTransactionNumber =
+            lastTransaction
+                ? lastTransaction.transactionNumber + 1
+                : 1;
+
+        await transactionModel.create({
+            transactionNumber: nextTransactionNumber,
+            credit,
+            debit,
+            description,
+            balance: 0,
+            transactionDate,
+            party: partyId
+        });
+
+        await recalculateBalances(partyId);
+
+        const updatedParty = await getPartyLedger(partyId);
+
+        return successResponse(
+            res,
+            "Transaction created successfully",
+            updatedParty
+        );
 
     } catch (error) {
-        return errorResponse(res, "Error creating transaction: " + error.message);
+
+        return errorResponse(
+            res,
+            "Error creating transaction : " + error.message
+        );
+
     }
-}
-
-const createNewTransaction = async (credit,
-    debit,
-    description,
-    balance,
-    transactionDate,
-    partyId) => {
-
-    const newTransaction = await transactionModel.create({
-        credit,
-        debit,
-        description,
-        balance,
-        transactionDate,
-        party: partyId
-    });
-    return newTransaction;
-}
+};
 
 const updateSubsequentBalances = async (partyId) => {
     const transactions = await transactionModel
@@ -108,12 +104,8 @@ module.exports.deleteTransaction = async (req, res) => {
 
         await transactionModel.findByIdAndDelete(id);
 
-        await partyModel.findByIdAndUpdate(transaction.party, {
-            $pull: { transactions: id }
-        });
-
-        await updateSubsequentBalances(transaction.party);
-        const updatedPartyTransactions = await partyModel.findById(transaction.party).populate("transactions");
+        await recalculateBalances(transaction.party);
+        const updatedPartyTransactions = await getPartyLedger(transaction.party);
         return successResponse(res, "Transaction deleted successfully", updatedPartyTransactions);
     } catch (error) {
         return errorResponse(res, "Error deleting transaction: " + error.message);
@@ -152,7 +144,10 @@ module.exports.getTransactions = async (req, res) => {
         }
 
         const transactions = await transactionModel.find(filter)
-            .sort({ createdAt: -1 })
+            .sort({
+                transactionDate: -1,
+                createdAt: -1
+            })
             .limit(50)
             .populate('party', 'partyCode name phoneNumber area');
 
@@ -178,19 +173,33 @@ module.exports.updateTransaction = async (req, res) => {
         }
 
         const transaction = await transactionModel.findById(id);
-        if (!transaction) {
-            return errorResponse(res, 'Transaction not found');
+        const oldParty = transaction.party.toString();
+
+        await transactionModel.findByIdAndUpdate(
+            id,
+            updates,
+            { new: true }
+        );
+
+        const newParty =
+            updates.party
+                ? updates.party.toString()
+                : oldParty;
+
+        await recalculateBalances(oldParty);
+
+        if (oldParty !== newParty) {
+            await recalculateBalances(newParty);
         }
 
-        // If party is changing, move the transaction id between parties
-        if (updates.party && updates.party.toString() !== transaction.party.toString()) {
-            await partyModel.findByIdAndUpdate(transaction.party, { $pull: { transactions: id } });
-            await partyModel.findByIdAndUpdate(updates.party, { $push: { transactions: id } });
-        }
+        const updatedParty =
+            await getPartyLedger(newParty);
 
-        const updatedTransaction = await transactionModel.findByIdAndUpdate(id, updates, { new: true });
-
-        return successResponse(res, 'Transaction updated successfully', updatedTransaction);
+        return successResponse(
+            res,
+            "Transaction updated successfully",
+            updatedParty
+        );
     } catch (error) {
         return errorResponse(res, 'Error updating transaction: ' + error.message);
     }
