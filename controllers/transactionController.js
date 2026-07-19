@@ -1,7 +1,8 @@
 const { successResponse, errorResponse } = require("../helpers/responses");
 const {
     recalculateBalances,
-    getPartyLedger
+    getPartyLedger,
+    getNextTransactionNumber
 } = require("../helpers/ledgerHelper");
 const partyModel = require("../models/party-model");
 const transactionModel = require("../models/transaction-model");
@@ -26,14 +27,8 @@ module.exports.createTransaction = async (req, res) => {
         }
 
         // Generate transaction number
-        const lastTransaction = await transactionModel
-            .findOne({ party: partyId })
-            .sort({ transactionNumber: -1 });
 
-        const nextTransactionNumber =
-            lastTransaction
-                ? lastTransaction.transactionNumber + 1
-                : 1;
+        const nextTransactionNumber = await getNextTransactionNumber();
 
         await transactionModel.create({
             transactionNumber: nextTransactionNumber,
@@ -62,34 +57,6 @@ module.exports.createTransaction = async (req, res) => {
             "Error creating transaction : " + error.message
         );
 
-    }
-};
-
-const updateSubsequentBalances = async (partyId) => {
-    const transactions = await transactionModel
-        .find({ party: partyId })
-        .sort({ transactionDate: 1, createdAt: 1 });
-
-    let runningBalance = 0;
-    const bulkOps = [];
-
-    for (const tx of transactions) {
-        runningBalance = runningBalance + tx.debit - tx.credit;
-
-        if (tx.balance !== runningBalance) {
-            bulkOps.push({
-                updateOne: {
-                    filter: { _id: tx._id },
-                    update: {
-                        $set: { balance: runningBalance }
-                    }
-                }
-            });
-        }
-    }
-
-    if (bulkOps.length > 0) {
-        await transactionModel.bulkWrite(bulkOps);
     }
 };
 
@@ -160,8 +127,16 @@ module.exports.updateTransaction = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const allowedFields = ['credit', 'debit', 'description', 'transactionDate', 'balance', 'party'];
+        const allowedFields = [
+            "credit",
+            "debit",
+            "description",
+            "transactionDate",
+            "party"
+        ];
+
         const updates = {};
+
         allowedFields.forEach(field => {
             if (Object.prototype.hasOwnProperty.call(req.body, field)) {
                 updates[field] = req.body[field];
@@ -169,38 +144,46 @@ module.exports.updateTransaction = async (req, res) => {
         });
 
         if (Object.keys(updates).length === 0) {
-            return errorResponse(res, 'No valid fields provided for update');
+            return errorResponse(res, "No valid fields provided for update");
         }
 
         const transaction = await transactionModel.findById(id);
-        const oldParty = transaction.party.toString();
 
+        if (!transaction) {
+            return errorResponse(res, "Transaction not found");
+        }
+
+        const oldParty = transaction.party.toString();
+        const newParty = updates.party
+            ? updates.party.toString()
+            : oldParty;
+            
         await transactionModel.findByIdAndUpdate(
             id,
             updates,
             { new: true }
         );
 
-        const newParty =
-            updates.party
-                ? updates.party.toString()
-                : oldParty;
-
+        // Recalculate balances of old party
         await recalculateBalances(oldParty);
 
+        // Recalculate balances of new party if changed
         if (oldParty !== newParty) {
             await recalculateBalances(newParty);
         }
 
-        const updatedParty =
-            await getPartyLedger(newParty);
+        const updatedParty = await getPartyLedger(newParty);
 
         return successResponse(
             res,
             "Transaction updated successfully",
             updatedParty
         );
+
     } catch (error) {
-        return errorResponse(res, 'Error updating transaction: ' + error.message);
+        return errorResponse(
+            res,
+            "Error updating transaction: " + error.message
+        );
     }
-}
+};

@@ -49,25 +49,32 @@ const transactionDataTemplate = [
 const seedData = async () => {
   try {
 
+    // Delete in dependency order
     await transactionModel.deleteMany({});
     await partyModel.deleteMany({});
     await userModel.deleteMany({});
 
+    // Create users
     const createdUsers = await userModel.insertMany(usersData);
 
+    // Create parties
     const createdParties = await partyModel.insertMany(
       partiesData.map((party, index) => ({
         ...party,
-        user: createdUsers[index]._id
+        user: createdUsers[index]._id,
+        transactions: []
       }))
     );
+
+    // Create transactions
+    let transactionNumber = 1;
 
     const transactions = createdParties.map((party, index) => {
 
       const t = transactionDataTemplate[index];
 
       return {
-        transactionNumber: 1,
+        transactionNumber: transactionNumber++,
         credit: t.credit,
         debit: t.debit,
         description: t.description,
@@ -78,8 +85,23 @@ const seedData = async () => {
 
     });
 
-    await transactionModel.insertMany(transactions);
+    const createdTransactions = await transactionModel.insertMany(transactions);
 
+    // Attach transactions to parties
+    const partyUpdates = createdParties.map((party, index) => ({
+      updateOne: {
+        filter: { _id: party._id },
+        update: {
+          $set: {
+            transactions: [createdTransactions[index]._id]
+          }
+        }
+      }
+    }));
+
+    await partyModel.bulkWrite(partyUpdates);
+
+    // Attach parties to users
     const userUpdates = createdUsers.map((user, index) => ({
       updateOne: {
         filter: { _id: user._id },
@@ -94,9 +116,9 @@ const seedData = async () => {
     await userModel.bulkWrite(userUpdates);
 
     console.log("✅ Database seeded successfully.");
-    console.log("Users:", createdUsers.length);
-    console.log("Parties:", createdParties.length);
-    console.log("Transactions:", transactions.length);
+    console.log(`Users        : ${createdUsers.length}`);
+    console.log(`Parties      : ${createdParties.length}`);
+    console.log(`Transactions : ${createdTransactions.length}`);
 
   } catch (err) {
 

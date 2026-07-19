@@ -57,7 +57,20 @@ const getPartyLedger = async (partyId) => {
     };
 };
 
+
+const getNextTransactionNumber = async () => {
+
+    const lastTransaction = await transactionModel
+        .findOne()
+        .sort({ transactionNumber: -1 });
+
+    return lastTransaction
+        ? lastTransaction.transactionNumber + 1
+        : 1;
+};
+
 module.exports = {
     recalculateBalances,
-    getPartyLedger
+    getPartyLedger,
+    getNextTransactionNumber
 };

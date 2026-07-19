@@ -41,13 +41,8 @@ const transactionSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 transactionSchema.index(
-    {
-        party: 1,
-        transactionNumber: 1
-    },
-    {
-        unique: true
-    }
+    { transactionNumber: 1 },
+    { unique: true }
 );
 
 module.exports = mongoose.model("Transaction", transactionSchema);
