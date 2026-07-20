@@ -4,8 +4,14 @@ const {
     getPartyLedger,
     getNextTransactionNumber
 } = require("../helpers/ledgerHelper");
+const {
+    drawTableHeader,
+    drawTransactionRow,
+    drawTotalsRow
+} = require("../helpers/pdfTableHelpers");
 const partyModel = require("../models/party-model");
 const transactionModel = require("../models/transaction-model");
+const PDFDocument = require("pdfkit");
 
 require("dotenv").config();
 
@@ -157,7 +163,7 @@ module.exports.updateTransaction = async (req, res) => {
         const newParty = updates.party
             ? updates.party.toString()
             : oldParty;
-            
+
         await transactionModel.findByIdAndUpdate(
             id,
             updates,
@@ -185,5 +191,147 @@ module.exports.updateTransaction = async (req, res) => {
             res,
             "Error updating transaction: " + error.message
         );
+    }
+};
+
+module.exports.exportTransactionsPdf = async (req, res) => {
+    try {
+
+        const { partyId, fromDate, toDate } = req.query;
+
+        const filter = {
+            party: partyId
+        };
+
+        if (fromDate || toDate) {
+
+            filter.transactionDate = {};
+
+            if (fromDate) {
+                filter.transactionDate.$gte = new Date(fromDate);
+            }
+
+            if (toDate) {
+                const end = new Date(toDate);
+                end.setHours(23, 59, 59, 999);
+                filter.transactionDate.$lte = end;
+            }
+        }
+
+        const transactions = await transactionModel
+            .find(filter)
+            .sort({
+                transactionDate: 1,
+                transactionNumber: 1
+            })
+            .populate("party");
+
+        let party = null;
+
+        if (transactions.length > 0) {
+            party = transactions[0].party;
+        } else {
+            party = await partyModel.findById(partyId);
+        }
+
+        const doc = new PDFDocument({
+            margin: 50,
+            size: "A4"
+        });
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+            "Content-Disposition",
+            "attachment; filename=transactions.pdf"
+        );
+
+        doc.pipe(res);
+
+        // =====================================================
+        // HEADER
+        // =====================================================
+
+        doc
+            .font("Helvetica-Bold")
+            .fontSize(22)
+            .text("MSTR LEDGER", {
+                align: "center"
+            });
+
+        doc.moveDown();
+
+        doc
+            .font("Helvetica")
+            .fontSize(12);
+
+        doc.text(`Party Code : ${party?.partyCode ?? "-"}`);
+        doc.text(`Party Name : ${party?.name ?? "-"}`);
+
+        doc.text(
+            `Date Range : ${fromDate || "Beginning"}  To  ${toDate || "Till Date"}`
+        );
+
+        doc.text(
+            `Generated On : ${new Date().toLocaleString()}`
+        );
+
+        doc.moveDown(1.5);
+
+        // =====================================================
+        // TABLE
+        // =====================================================
+
+        const startX = 50;
+
+        const columns = {
+            txn: startX,
+            date: startX + 60,
+            credit: startX + 150,
+            debit: startX + 240,
+            balance: startX + 330
+        };
+
+        let y = drawTableHeader(
+            doc,
+            columns,
+            doc.y
+        );
+
+        let totalCredit = 0;
+        let totalDebit = 0;
+
+        transactions.forEach((txn) => {
+
+            totalCredit += txn.credit;
+            totalDebit += txn.debit;
+
+            y = drawTransactionRow(
+                doc,
+                columns,
+                y,
+                txn
+            );
+
+        });
+
+        y = drawTotalsRow(
+            doc,
+            columns,
+            y,
+            totalCredit,
+            totalDebit,
+            transactions.length
+                ? transactions[transactions.length - 1].balance
+                : 0
+        );
+
+        doc.end();
+    } catch (error) {
+
+        return errorResponse(
+            res,
+            "Error generating pdf : " + error.message
+        );
+
     }
 };
