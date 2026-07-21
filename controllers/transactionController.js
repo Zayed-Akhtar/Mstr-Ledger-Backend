@@ -8,10 +8,14 @@ const {
     drawTableHeader,
     drawTransactionRow,
     drawTotalsRow
-} = require("../helpers/pdfTableHelpers");
+} = require("../helpers/pdf/pdfTableHelpers");
+const buildTransactionFilter = require("../helpers/filters/buildTransactionFilter");
+const buildPdfFileName = require("../helpers/pdf/buildPdfFileName");
 const partyModel = require("../models/party-model");
 const transactionModel = require("../models/transaction-model");
 const PDFDocument = require("pdfkit");
+const { formatDate } = require("../helpers/dateFormatter");
+const columns = require("../helpers/pdf/pdfColumns");
 
 require("dotenv").config();
 
@@ -199,24 +203,11 @@ module.exports.exportTransactionsPdf = async (req, res) => {
 
         const { partyId, fromDate, toDate } = req.query;
 
-        const filter = {
-            party: partyId
-        };
-
-        if (fromDate || toDate) {
-
-            filter.transactionDate = {};
-
-            if (fromDate) {
-                filter.transactionDate.$gte = new Date(fromDate);
-            }
-
-            if (toDate) {
-                const end = new Date(toDate);
-                end.setHours(23, 59, 59, 999);
-                filter.transactionDate.$lte = end;
-            }
-        }
+        const filter = buildTransactionFilter(
+            partyId,
+            fromDate,
+            toDate
+        );
 
         const transactions = await transactionModel
             .find(filter)
@@ -236,13 +227,21 @@ module.exports.exportTransactionsPdf = async (req, res) => {
 
         const doc = new PDFDocument({
             margin: 50,
-            size: "A4"
+            size: "A4",
+            bufferPages: true
         });
 
         res.setHeader("Content-Type", "application/pdf");
+
+        const fileName = buildPdfFileName(
+            party?.name,
+            fromDate,
+            toDate
+        );
+
         res.setHeader(
             "Content-Disposition",
-            "attachment; filename=transactions.pdf"
+            `attachment; filename="${fileName}"`
         );
 
         doc.pipe(res);
@@ -268,7 +267,13 @@ module.exports.exportTransactionsPdf = async (req, res) => {
         doc.text(`Party Name : ${party?.name ?? "-"}`);
 
         doc.text(
-            `Date Range : ${fromDate || "Beginning"}  To  ${toDate || "Till Date"}`
+            `Date Range : ${fromDate
+                ? formatDate(fromDate)
+                : "Beginning"
+            }  To  ${toDate
+                ? formatDate(toDate)
+                : "Till Date"
+            }`
         );
 
         doc.text(
@@ -276,24 +281,38 @@ module.exports.exportTransactionsPdf = async (req, res) => {
         );
 
         doc.moveDown(1.5);
+        // =====================================================
+        // NO TRANSACTIONS FOUND
+        // =====================================================
 
+        if (transactions.length === 0) {
+
+            doc
+                .moveTo(50, doc.y)
+                .lineTo(545, doc.y)
+                .stroke();
+
+            doc.moveDown();
+            doc
+                .font("Helvetica-Oblique")
+                .fontSize(13)
+                .fillColor("gray")
+                .text(
+                    "No transactions found for the selected date range.",
+                    {
+                        align: "center"
+                    }
+                );
+
+            doc.end();
+            return;
+        }
         // =====================================================
         // TABLE
         // =====================================================
 
-        const startX = 50;
-
-        const columns = {
-            txn: startX,
-            date: startX + 60,
-            credit: startX + 150,
-            debit: startX + 240,
-            balance: startX + 330
-        };
-
         let y = drawTableHeader(
             doc,
-            columns,
             doc.y
         );
 
@@ -307,7 +326,6 @@ module.exports.exportTransactionsPdf = async (req, res) => {
 
             y = drawTransactionRow(
                 doc,
-                columns,
                 y,
                 txn
             );
@@ -316,7 +334,6 @@ module.exports.exportTransactionsPdf = async (req, res) => {
 
         y = drawTotalsRow(
             doc,
-            columns,
             y,
             totalCredit,
             totalDebit,
@@ -325,13 +342,51 @@ module.exports.exportTransactionsPdf = async (req, res) => {
                 : 0
         );
 
+        // --------------------------------------
+        // Page Numbers
+        // --------------------------------------
+
+        const range = doc.bufferedPageRange();
+
+        for (
+            let i = range.start;
+            i < range.start + range.count;
+            i++
+        ) {
+
+            doc.switchToPage(i);
+
+            doc.save();
+
+            doc
+                .font("Helvetica")
+                .fontSize(9)
+                .fillColor("gray")
+                .text(
+                    `Page ${i + 1} of ${range.count}`,
+                    0,
+                    doc.page.height - 40,
+                    {
+                        width: doc.page.width,
+                        align: "center",
+                        lineBreak: false
+                    }
+                );
+
+            doc.restore();
+        }
+
         doc.end();
     } catch (error) {
 
-        return errorResponse(
-            res,
-            "Error generating pdf : " + error.message
-        );
+        console.error(error);
+
+        if (!res.headersSent) {
+            return errorResponse(
+                res,
+                "Error generating pdf : " + error.message
+            );
+        }
 
     }
 };
