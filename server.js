@@ -18,6 +18,7 @@ app.use(
       "Expires",
       "Pragma",
     ],
+    exposedHeaders: ["Content-Disposition"],
     credentials: true,
   })
 );
