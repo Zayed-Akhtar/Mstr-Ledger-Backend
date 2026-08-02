@@ -2,7 +2,8 @@ const { successResponse, errorResponse } = require("../helpers/responses");
 const {
     recalculateBalances,
     getPartyLedger,
-    getNextTransactionNumber
+    getNextTransactionNumber,
+    normalizePartyArea
 } = require("../helpers/ledgerHelper");
 const {
     drawTableHeader,
@@ -128,7 +129,17 @@ module.exports.getTransactions = async (req, res) => {
             .limit(50)
             .populate('party', 'partyCode name phoneNumber area');
 
-        return successResponse(res, 'Transactions fetched successfully', transactions);
+        const normalizedTransactions = await Promise.all(
+            transactions.map(async (transaction) => {
+                const plainTransaction = transaction.toObject ? transaction.toObject() : { ...transaction };
+                if (plainTransaction.party) {
+                    plainTransaction.party = await normalizePartyArea(plainTransaction.party);
+                }
+                return plainTransaction;
+            })
+        );
+
+        return successResponse(res, 'Transactions fetched successfully', normalizedTransactions);
     } catch (error) {
         return errorResponse(res, 'Error fetching transactions: ' + error.message);
     }

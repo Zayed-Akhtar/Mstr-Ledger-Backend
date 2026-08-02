@@ -1,5 +1,24 @@
 const transactionModel = require("../models/transaction-model");
 const partyModel = require("../models/party-model");
+const areaModel = require("../models/area-model");
+
+const normalizePartyArea = async (party) => {
+    if (!party) return null;
+
+    const plainParty = party.toObject ? party.toObject() : { ...party };
+
+    if (plainParty.area && typeof plainParty.area === "object" && plainParty.area.name) {
+        plainParty.area = plainParty.area.name;
+        return plainParty;
+    }
+
+    if (plainParty.area) {
+        const area = await areaModel.findById(plainParty.area).select("name").lean();
+        plainParty.area = area ? area.name : plainParty.area;
+    }
+
+    return plainParty;
+};
 
 const recalculateBalances = async (partyId) => {
     const transactions = await transactionModel
@@ -51,8 +70,14 @@ const getPartyLedger = async (partyId) => {
             createdAt: 1
         });
 
+    const normalizedParty = { ...party };
+    if (normalizedParty.area) {
+        const area = await areaModel.findById(normalizedParty.area).select("name").lean();
+        normalizedParty.area = area ? area.name : normalizedParty.area;
+    }
+
     return {
-        ...party,
+        ...normalizedParty,
         transactions
     };
 };
@@ -72,5 +97,6 @@ const getNextTransactionNumber = async () => {
 module.exports = {
     recalculateBalances,
     getPartyLedger,
-    getNextTransactionNumber
+    getNextTransactionNumber,
+    normalizePartyArea
 };

@@ -4,131 +4,405 @@ const mongoose = require("mongoose");
 require("../config/mongodb-cpnnection");
 
 const userModel = require("../models/user-model");
+const areaModel = require("../models/area-model");
 const partyModel = require("../models/party-model");
 const transactionModel = require("../models/transaction-model");
 
 const usersData = [
-  { firstName: "Ayesha", lastname: "Khan", email: "ayesha.khan@example.com", password: "password123", phoneNumber: "555-0101" },
-  { firstName: "Bilal", lastname: "Raza", email: "bilal.raza@example.com", password: "password123", phoneNumber: "555-0102" },
-  { firstName: "Sameer", lastname: "Ali", email: "sameer.ali@example.com", password: "password123", phoneNumber: "555-0103" },
-  { firstName: "Fatima", lastname: "Imam", email: "fatima.imam@example.com", password: "password123", phoneNumber: "555-0104" },
-  { firstName: "Hassan", lastname: "Javed", email: "hassan.javed@example.com", password: "password123", phoneNumber: "555-0105" },
-  { firstName: "Leila", lastname: "Ahmed", email: "leila.ahmed@example.com", password: "password123", phoneNumber: "555-0106" },
-  { firstName: "Adnan", lastname: "Yousaf", email: "adnan.yousaf@example.com", password: "password123", phoneNumber: "555-0107" },
-  { firstName: "Noor", lastname: "Hassan", email: "noor.hassan@example.com", password: "password123", phoneNumber: "555-0108" },
-  { firstName: "Sara", lastname: "Malik", email: "sara.malik@example.com", password: "password123", phoneNumber: "555-0109" },
-  { firstName: "Omar", lastname: "Naveed", email: "omar.naveed@example.com", password: "password123", phoneNumber: "555-0110" }
+    {
+        firstName: "Ayesha",
+        lastname: "Khan",
+        email: "ayesha.khan@example.com",
+        password: "password123",
+        phoneNumber: "555-0101"
+    },
+    {
+        firstName: "Bilal",
+        lastname: "Raza",
+        email: "bilal.raza@example.com",
+        password: "password123",
+        phoneNumber: "555-0102"
+    },
+    {
+        firstName: "Sameer",
+        lastname: "Ali",
+        email: "sameer.ali@example.com",
+        password: "password123",
+        phoneNumber: "555-0103"
+    }
+];
+
+const areasData = [
+    {
+        name: "North Zone",
+        description: "Northern commercial area"
+    },
+    {
+        name: "South Zone",
+        description: "Southern commercial area"
+    },
+    {
+        name: "Central Zone",
+        description: "Central business district"
+    }
 ];
 
 const partiesData = [
-  { partyCode: "P001", area: "North Zone", fullAddress: "12 Elm Street", phoneNumber: "555-0201", name: "Khan Traders" },
-  { partyCode: "P002", area: "East Zone", fullAddress: "34 Oak Avenue", phoneNumber: "555-0202", name: "Raza Enterprises" },
-  { partyCode: "P003", area: "South Zone", fullAddress: "56 Pine Road", phoneNumber: "555-0203", name: "Ali Supplies" },
-  { partyCode: "P004", area: "West Zone", fullAddress: "78 Maple Lane", phoneNumber: "555-0204", name: "Imam Distributors" },
-  { partyCode: "P005", area: "Central Zone", fullAddress: "90 Cedar Court", phoneNumber: "555-0205", name: "Javed Wholesale" },
-  { partyCode: "P006", area: "Harbor Area", fullAddress: "11 Birch Boulevard", phoneNumber: "555-0206", name: "Ahmed Merchants" },
-  { partyCode: "P007", area: "Market Area", fullAddress: "22 Spruce Drive", phoneNumber: "555-0207", name: "Yousaf Goods" },
-  { partyCode: "P008", area: "Industrial Area", fullAddress: "33 Walnut Way", phoneNumber: "555-0208", name: "Hassan Commerce" },
-  { partyCode: "P009", area: "Uptown", fullAddress: "44 Chestnut Circle", phoneNumber: "555-0209", name: "Malik Traders" },
-  { partyCode: "P010", area: "Downtown", fullAddress: "55 Willow Terrace", phoneNumber: "555-0210", name: "Naveed Supplies" }
+    {
+        partyCode: "P001",
+        name: "Khan Traders",
+        fullAddress: "12 Elm Street",
+        phoneNumber: "555-0201",
+        email: "khantraders@example.com",
+        creditLimit: 50000,
+        active: true
+    },
+    {
+        partyCode: "P002",
+        name: "Raza Enterprises",
+        fullAddress: "34 Oak Avenue",
+        phoneNumber: "555-0202",
+        email: "raza@example.com",
+        creditLimit: 75000,
+        active: true
+    },
+    {
+        partyCode: "P003",
+        name: "Ali Supplies",
+        fullAddress: "56 Pine Road",
+        phoneNumber: "555-0203",
+        email: "ali@example.com",
+        creditLimit: 40000,
+        active: true
+    },
+    {
+        partyCode: "P004",
+        name: "Imam Distributors",
+        fullAddress: "78 Maple Lane",
+        phoneNumber: "555-0204",
+        email: "imam@example.com",
+        creditLimit: 100000,
+        active: true
+    },
+    {
+        partyCode: "P005",
+        name: "Javed Wholesale",
+        fullAddress: "90 Cedar Court",
+        phoneNumber: "555-0205",
+        email: "javed@example.com",
+        creditLimit: 60000,
+        active: false
+    },
+    {
+        partyCode: "P006",
+        name: "Ahmed Merchants",
+        fullAddress: "11 Birch Boulevard",
+        phoneNumber: "555-0206",
+        email: "ahmed@example.com",
+        creditLimit: 80000,
+        active: true
+    }
 ];
 
-const transactionDataTemplate = [
-  { credit: 0, debit: 1200, description: "Opening stock purchase" },
-  { credit: 300, debit: 0, description: "Received payment" },
-  { credit: 0, debit: 650, description: "Inventory purchase" },
-  { credit: 500, debit: 0, description: "Customer settlement" },
-  { credit: 0, debit: 900, description: "New stock delivery" },
-  { credit: 450, debit: 0, description: "Partial payment received" },
-  { credit: 0, debit: 700, description: "Purchase order" },
-  { credit: 800, debit: 0, description: "Client payment" },
-  { credit: 0, debit: 400, description: "New purchase" },
-  { credit: 200, debit: 0, description: "Final settlement" }
+const transactionData = [
+    {
+        debit: 1200,
+        credit: 0,
+        description: "Opening stock purchase"
+    },
+    {
+        debit: 0,
+        credit: 300,
+        description: "Received payment"
+    },
+    {
+        debit: 650,
+        credit: 0,
+        description: "Inventory purchase"
+    },
+    {
+        debit: 0,
+        credit: 500,
+        description: "Customer settlement"
+    },
+    {
+        debit: 900,
+        credit: 0,
+        description: "New stock delivery"
+    },
+    {
+        debit: 0,
+        credit: 450,
+        description: "Partial payment received"
+    },
+    {
+        debit: 700,
+        credit: 0,
+        description: "Purchase order"
+    },
+    {
+        debit: 0,
+        credit: 800,
+        description: "Client payment"
+    },
+    {
+        debit: 400,
+        credit: 0,
+        description: "New purchase"
+    },
+    {
+        debit: 0,
+        credit: 200,
+        description: "Final settlement"
+    }
 ];
 
 const seedData = async () => {
-  try {
 
-    // Delete in dependency order
-    await transactionModel.deleteMany({});
-    await partyModel.deleteMany({});
-    await userModel.deleteMany({});
+    try {
 
-    // Create users
-    const createdUsers = await userModel.insertMany(usersData);
+        /*
+        ------------------------------------
+        1. CLEAR EXISTING DATA
+        ------------------------------------
+        */
 
-    // Create parties
-    const createdParties = await partyModel.insertMany(
-      partiesData.map((party, index) => ({
-        ...party,
-        user: createdUsers[index]._id,
-        transactions: []
-      }))
-    );
+        await transactionModel.deleteMany({});
+        await partyModel.deleteMany({});
+        await areaModel.deleteMany({});
+        await userModel.deleteMany({});
 
-    // Create transactions
-    let transactionNumber = 1;
+        console.log("Existing data deleted.");
 
-    const transactions = createdParties.map((party, index) => {
+        /*
+        ------------------------------------
+        2. CREATE USERS
+        ------------------------------------
+        */
 
-      const t = transactionDataTemplate[index];
+        const createdUsers = await userModel.insertMany(usersData);
 
-      return {
-        transactionNumber: transactionNumber++,
-        credit: t.credit,
-        debit: t.debit,
-        description: t.description,
-        balance: t.debit - t.credit,
-        transactionDate: new Date(2026, 0, index + 1),
-        party: party._id
-      };
+        console.log(`${createdUsers.length} users created.`);
 
-    });
+        /*
+        ------------------------------------
+        3. CREATE AREAS
+        ------------------------------------
+        */
 
-    const createdTransactions = await transactionModel.insertMany(transactions);
+        // Each user gets one area
+        const areas = areasData.map((area, index) => ({
+            ...area,
 
-    // Attach transactions to parties
-    const partyUpdates = createdParties.map((party, index) => ({
-      updateOne: {
-        filter: { _id: party._id },
-        update: {
-          $set: {
-            transactions: [createdTransactions[index]._id]
-          }
-        }
-      }
-    }));
+            user: createdUsers[index]._id,
 
-    await partyModel.bulkWrite(partyUpdates);
+            // Will update after creating parties
+            parties: 0
+        }));
 
-    // Attach parties to users
-    const userUpdates = createdUsers.map((user, index) => ({
-      updateOne: {
-        filter: { _id: user._id },
-        update: {
-          $set: {
-            parties: [createdParties[index]._id]
-          }
-        }
-      }
-    }));
+        const createdAreas = await areaModel.insertMany(areas);
 
-    await userModel.bulkWrite(userUpdates);
+        console.log(`${createdAreas.length} areas created.`);
 
-    console.log("✅ Database seeded successfully.");
-    console.log(`Users        : ${createdUsers.length}`);
-    console.log(`Parties      : ${createdParties.length}`);
-    console.log(`Transactions : ${createdTransactions.length}`);
+        /*
+        ------------------------------------
+        4. CREATE PARTIES
+        ------------------------------------
 
-  } catch (err) {
+        User 1:
+            North Zone
+            P001
+            P002
 
-    console.error("❌ Seed failed:", err);
+        User 2:
+            South Zone
+            P003
+            P004
 
-  } finally {
+        User 3:
+            Central Zone
+            P005
+            P006
+        ------------------------------------
+        */
 
-    await mongoose.connection.close();
+        const parties = partiesData.map((party, index) => {
 
-  }
+            const userIndex = Math.floor(index / 2);
+
+            return {
+                ...party,
+
+                user: createdUsers[userIndex]._id,
+
+                area: createdAreas[userIndex]._id
+            };
+
+        });
+
+        const createdParties = await partyModel.insertMany(parties);
+
+        console.log(`${createdParties.length} parties created.`);
+
+        /*
+        ------------------------------------
+        5. UPDATE AREA PARTY COUNTS
+        ------------------------------------
+        */
+
+        const areaUpdates = createdAreas.map((area, index) => {
+
+            const partyCount = createdParties.filter(
+                party =>
+                    party.area.toString() === area._id.toString()
+            ).length;
+
+            return {
+                updateOne: {
+
+                    filter: {
+                        _id: area._id
+                    },
+
+                    update: {
+                        $set: {
+                            parties: partyCount
+                        }
+                    }
+
+                }
+            };
+
+        });
+
+        await areaModel.bulkWrite(areaUpdates);
+
+        /*
+        ------------------------------------
+        6. ATTACH PARTIES TO USERS
+        ------------------------------------
+        */
+
+        const userUpdates = createdUsers.map(user => {
+
+            const userParties = createdParties
+                .filter(
+                    party =>
+                        party.user.toString() === user._id.toString()
+                )
+                .map(party => party._id);
+
+            return {
+
+                updateOne: {
+
+                    filter: {
+                        _id: user._id
+                    },
+
+                    update: {
+                        $set: {
+                            parties: userParties
+                        }
+                    }
+
+                }
+
+            };
+
+        });
+
+        await userModel.bulkWrite(userUpdates);
+
+        /*
+        ------------------------------------
+        7. CREATE TRANSACTIONS
+        ------------------------------------
+        */
+
+        let transactionNumber = 1;
+
+        const transactions = [];
+
+        createdParties.forEach((party, partyIndex) => {
+
+            let balance = 0;
+
+            // Give every party 10 transactions
+            transactionData.forEach((transaction, transactionIndex) => {
+
+                /*
+                Assuming:
+
+                Debit  -> increases balance
+                Credit -> decreases balance
+                */
+
+                balance += transaction.debit - transaction.credit;
+
+                transactions.push({
+
+                    transactionNumber:
+                        transactionNumber++,
+
+                    transactionDate:
+                        new Date(
+                            2026,
+                            partyIndex,
+                            transactionIndex + 1
+                        ),
+
+                    description:
+                        transaction.description,
+
+                    debit:
+                        transaction.debit,
+
+                    credit:
+                        transaction.credit,
+
+                    balance,
+
+                    party:
+                        party._id
+
+                });
+
+            });
+
+        });
+
+        const createdTransactions =
+            await transactionModel.insertMany(transactions);
+
+        /*
+        ------------------------------------
+        SUCCESS
+        ------------------------------------
+        */
+
+        console.log("");
+        console.log("✅ Database seeded successfully.");
+        console.log("--------------------------------");
+        console.log(`Users        : ${createdUsers.length}`);
+        console.log(`Areas        : ${createdAreas.length}`);
+        console.log(`Parties      : ${createdParties.length}`);
+        console.log(`Transactions : ${createdTransactions.length}`);
+
+    } catch (err) {
+
+        console.error("❌ Seed failed:");
+        console.error(err);
+
+    } finally {
+
+        await mongoose.connection.close();
+
+        console.log("");
+        console.log("MongoDB connection closed.");
+
+    }
+
 };
 
 seedData();

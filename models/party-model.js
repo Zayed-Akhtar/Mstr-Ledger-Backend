@@ -1,29 +1,41 @@
 const mongoose = require('mongoose');
 
 const partySchema = mongoose.Schema({
-partyCode: {
+  partyCode: {
     type: String,
-    required: true},
+    required: true
+  },
   area: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Area',
     required: true
   },
   fullAddress: {
     type: String,
   },
-  phoneNumber:{
-    type:String,
-    required:true
+  phoneNumber: {
+    type: String,
+    required: true
   },
-  name:{
-    type:String,
-    required:true   
+  name: {
+    type: String,
+    required: true
   },
-  user:{
-    type:mongoose.Schema.Types.ObjectId,
+  creditLimit: {
+    type: Number,
+    default: 0
+  },
+  email: {
+    type: String,
+  },
+  active: {
+    type: Boolean,
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required:true
+    required: true
   }
-}, {timestamps:true});
+}, { timestamps: true });
 
 module.exports = mongoose.model('Party', partySchema);
