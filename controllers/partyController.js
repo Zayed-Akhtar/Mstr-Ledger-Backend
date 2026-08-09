@@ -41,7 +41,7 @@ module.exports.searchParty = async (req, res) => {
         const [parties, totalRecords] = await Promise.all([
             partyModel
                 .find(filter)
-                .select("_id partyCode name phoneNumber area fullAddress active creditLimit")
+                .select("_id partyCode name phoneNumber area email fullAddress active creditLimit")
                 .populate("area", "name")
                 .sort({ name: 1 })
                 .skip(skip)

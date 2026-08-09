@@ -390,7 +390,6 @@ module.exports.exportTransactionsPdf = async (req, res) => {
         doc.end();
     } catch (error) {
 
-        console.error(error);
 
         if (!res.headersSent) {
             return errorResponse(
