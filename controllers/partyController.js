@@ -276,8 +276,8 @@ module.exports.createParty = async (req, res) => {
       user
     } = req.body;
 
-    if (!partyCode || !area || !phoneNumber || !name) {
-      return badRequestResponse(res, "Party code, area, phone number and name are required");
+    if (!partyCode || !name) {
+      return badRequestResponse(res, "Party code andname are required");
     }
 
     const resolvedUser = user || new mongoose.Types.ObjectId().toString();
@@ -322,6 +322,8 @@ module.exports.createParty = async (req, res) => {
 
     return successResponse(res, "Party created successfully", newParty);
   } catch (error) {
+    console.log('error in create party', error.message);
+    
     return errorResponse(res, "Error creating party: " + error.message);
   }
 };

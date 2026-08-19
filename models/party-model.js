@@ -8,14 +8,12 @@ const partySchema = mongoose.Schema({
   area: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Area',
-    required: true
   },
   fullAddress: {
     type: String,
   },
   phoneNumber: {
     type: String,
-    required: true
   },
   name: {
     type: String,
