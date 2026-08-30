@@ -78,7 +78,8 @@ console.log('reached signup', req.body);
         if (
             !fullname ||
             !email ||
-            !password       
+            !password  ||
+            !phoneNumber   
         ) {
             return res.status(400).json({
                 success: false,

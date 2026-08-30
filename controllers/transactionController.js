@@ -137,7 +137,7 @@ module.exports.getTransactions = async (req, res) => {
                 }
                 return plainTransaction;
             })
-        );
+        );        
 
         return successResponse(res, 'Transactions fetched successfully', normalizedTransactions);
     } catch (error) {

@@ -7,7 +7,6 @@ const areaSchema = mongoose.Schema({
     },
     description: {
         type: String,
-        required: true
     },
     parties: {
         type: Number,

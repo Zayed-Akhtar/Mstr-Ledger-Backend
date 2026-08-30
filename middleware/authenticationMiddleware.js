@@ -8,8 +8,7 @@ const authenticationMiddleware = (
 
     try {
 
-        const token = req.cookies.token;
-
+        const token = req.cookies.token;        
         if (!token) {
 
             return res.status(401).json({
@@ -24,6 +23,7 @@ const authenticationMiddleware = (
             token,
             process.env.JWT_SECRET
         );
+        console.log('decoded user', decoded);
 
 
         req.user = decoded;

@@ -39,12 +39,13 @@ module.exports.decrementAreaPartyCount = async (areaIdentifier) => {
 };
 
 module.exports.createArea = async (req, res) => {
+    const user = req.user.userId;
     try {
-        const { name, description, active, user } = req.body;
+        const { name, description, active } = req.body;
 
         const resolvedUser = user || new mongoose.Types.ObjectId().toString();
 
-        const existingArea = await areaModel.findOne({
+        const existingArea = await areaModel.findOne({user,
             name: { $regex: `^${escapeRegex(name)}$`, $options: "i" }
         });
 
@@ -74,10 +75,10 @@ module.exports.getAreas = async (req, res) => {
         const skip = (page - 1) * limit;
 
         const filter = {};
+        filter.user = req.user.userId; // Filter by the authenticated user's ID
 
         if (search) {
             const searchableText = escapeRegex(search);
-
             filter.$or = [
                 { name: { $regex: searchableText, $options: "i" } },
                 { description: { $regex: searchableText, $options: "i" } }
@@ -187,7 +188,7 @@ module.exports.createAreaIfNotExists = async (areaName, userId = null, descripti
 module.exports.searchAreas = async (req, res) => {
     try {
         const searchText = (req.query.search || "").trim();
-
+        const user = req.user.userId;
         if (!searchText) {
             return successResponse(res, "Areas fetched successfully", []);
         }
@@ -195,7 +196,7 @@ module.exports.searchAreas = async (req, res) => {
         const normalizedSearch = searchText.trim();
         const escapedSearch = escapeRegex(normalizedSearch);
 
-        const exactMatches = await areaModel.find({
+        const exactMatches = await areaModel.find({user,
             $or: [
                 { name: { $regex: `^${escapedSearch}$`, $options: "i" } },
                 { description: { $regex: `^${escapedSearch}$`, $options: "i" } }
@@ -208,7 +209,7 @@ module.exports.searchAreas = async (req, res) => {
             return successResponse(res, "Matching areas fetched successfully", exactMatches);
         }
 
-        const fuzzyMatches = await areaModel.find({
+        const fuzzyMatches = await areaModel.find({user,
             $or: [
                 { name: { $regex: escapedSearch, $options: "i" } },
                 { description: { $regex: escapedSearch, $options: "i" } }

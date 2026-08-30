@@ -11,6 +11,7 @@ const escapeRegex = (value) => {
 };
 
 module.exports.searchParty = async (req, res) => {
+  const user = req.user.userId;
     try {
         const page = Math.max(parseInt(req.query.page) || 1, 1);
         const limit = Math.max(parseInt(req.query.limit) || 5, 1);
@@ -18,10 +19,10 @@ module.exports.searchParty = async (req, res) => {
         const skip = (page - 1) * limit;
 
         const filter = {};
-
+        filter.user = user;
         if (search) {
             const searchableText = escapeRegex(search);
-            const areaMatches = await areaModel.find({
+            const areaMatches = await areaModel.find({user,
                 name: { $regex: searchableText, $options: "i" }
             }).select("_id");
 
@@ -158,13 +159,14 @@ module.exports.deleteParty = async (req, res) => {
 };
 
 module.exports.getPartyTransactionsByName = async (req, res) => {
+  const user = req.user.userId;
   try {
     const { name } = req.params;
 
     if (!name) {
       return errorResponse(res, "Party name is required");
     }
-    const parties = await partyModel.find({
+    const parties = await partyModel.find({user,
       name: {
         $regex: escapeRegex(name),
         $options: "i"
@@ -190,6 +192,7 @@ module.exports.getPartyTransactionsByName = async (req, res) => {
 };
 
 module.exports.getPartyTransactionsByCode = async (req, res) => {
+  const user = req.user.userId;
   try {
     const { code } = req.params;
 
@@ -197,7 +200,7 @@ module.exports.getPartyTransactionsByCode = async (req, res) => {
       return errorResponse(res, "Party code is required");
     }
 
-    const party = await partyModel.findOne({
+    const party = await partyModel.findOne({user,
       partyCode: {
         $regex: `^${escapeRegex(code)}$`,
         $options: "i"
@@ -263,6 +266,7 @@ module.exports.getPartyTransactionsDetails = async (req, res) => {
 };
 
 module.exports.createParty = async (req, res) => {
+  const user = req.user.userId;
   try {
     const {
       partyCode,
@@ -272,12 +276,11 @@ module.exports.createParty = async (req, res) => {
       name,
       creditLimit = 0,
       email,
-      active,
-      user
+      active
     } = req.body;
 
     if (!partyCode || !name) {
-      return badRequestResponse(res, "Party code andname are required");
+      return badRequestResponse(res, "PartyCode and name are required");
     }
 
     const resolvedUser = user || new mongoose.Types.ObjectId().toString();
@@ -296,6 +299,7 @@ module.exports.createParty = async (req, res) => {
     }
 
     const existingParty = await partyModel.findOne({
+      user,
       partyCode: {
         $regex: `^${escapeRegex(partyCode)}$`,
         $options: "i"
