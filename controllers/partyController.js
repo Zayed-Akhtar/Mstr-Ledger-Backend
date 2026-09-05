@@ -158,7 +158,7 @@ module.exports.deleteParty = async (req, res) => {
   }
 };
 
-module.exports.getPartyTransactionsByName = async (req, res) => {
+module.exports.getPartiesByName = async (req, res) => {
   const user = req.user.userId;
   try {
     const { name } = req.params;
@@ -171,19 +171,39 @@ module.exports.getPartyTransactionsByName = async (req, res) => {
         $regex: escapeRegex(name),
         $options: "i"
       }
-    }).populate("area", "name");
+    }).populate("area", "name").select("_id partyCode name phoneNumber area email fullAddress active creditLimit");
 
     if (parties.length === 0) {
       return successResponse(res, "No parties found with this name", []);
     }
 
-    const result = await Promise.all(
-      parties.map(party => getPartyLedger(party._id))
-    );
-
     return successResponse(
       res,
       "Parties fetched successfully",
+      parties
+    );
+  } catch (error) {
+    return errorResponse(res, "Error fetching parties: " + error.message);
+  }
+};
+
+module.exports.getPartyTransactionsById = async (req, res) => {
+  try {
+    const { partyId } = req.params;
+
+    if (!partyId) {
+      return errorResponse(res, "Party ID is required");
+    }
+
+    const result = await getPartyLedger(partyId);
+
+    if (!result) {
+      return errorResponse(res, "Party not found");
+    }
+
+    return successResponse(
+      res,
+      "Party transactions fetched successfully",
       result
     );
   } catch (error) {
