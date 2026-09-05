@@ -97,9 +97,10 @@ module.exports.getTransactions = async (req, res) => {
     try {
         const { partyCode, name, phoneNumber } = req.query;
         const filter = {};
+        const partyFilter = { user: req.user.userId };
 
         if (partyCode || name || phoneNumber) {
-            const partyFilter = { $or: [] };
+            partyFilter.$or = [];
 
             if (partyCode) {
                 partyFilter.$or.push({ partyCode: { $regex: escapeRegex(partyCode), $options: 'i' } });
@@ -110,16 +111,16 @@ module.exports.getTransactions = async (req, res) => {
             if (phoneNumber) {
                 partyFilter.$or.push({ phoneNumber: { $regex: escapeRegex(phoneNumber), $options: 'i' } });
             }
-
-            const parties = await partyModel.find(partyFilter).select('_id');
-            const partyIds = parties.map((party) => party._id);
-
-            if (partyIds.length === 0) {
-                return successResponse(res, 'Transactions fetched successfully', []);
-            }
-
-            filter.party = { $in: partyIds };
         }
+
+        const parties = await partyModel.find(partyFilter).select('_id');
+        const partyIds = parties.map((party) => party._id);
+
+        if (partyIds.length === 0) {
+            return successResponse(res, 'Transactions fetched successfully', []);
+        }
+
+        filter.party = { $in: partyIds };
 
         const transactions = await transactionModel.find(filter)
             .sort({

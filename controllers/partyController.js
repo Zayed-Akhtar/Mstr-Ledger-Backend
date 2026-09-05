@@ -3,7 +3,7 @@ const { successResponse, errorResponse, badRequestResponse } = require("../helpe
 const partyModel = require("../models/party-model");
 const areaModel = require("../models/area-model");
 const transactionModel = require("../models/transaction-model");
-const { getPartyLedger } = require("../helpers/ledgerHelper");
+const { getPartyLedger, normalizePartyArea } = require("../helpers/ledgerHelper");
 const { incrementAreaPartyCount, decrementAreaPartyCount, createAreaIfNotExists } = require("./areaController");
 
 const escapeRegex = (value) => {
@@ -51,13 +51,17 @@ module.exports.searchParty = async (req, res) => {
             partyModel.countDocuments(filter)
         ]);
 
+        const normalizedParties = await Promise.all(
+            parties.map((party) => normalizePartyArea(party))
+        );
+
         const totalPages = Math.ceil(totalRecords / limit);
 
         return successResponse(
             res,
             "Parties fetched successfully",
             {
-                parties,
+                parties: normalizedParties,
                 pagination: {
                     currentPage: page,
                     pageSize: limit,
@@ -173,6 +177,10 @@ module.exports.getPartiesByName = async (req, res) => {
       }
     }).populate("area", "name").select("_id partyCode name phoneNumber area email fullAddress active creditLimit");
 
+    const normalizedParties = await Promise.all(
+      parties.map((party) => normalizePartyArea(party))
+    );
+
     if (parties.length === 0) {
       return successResponse(res, "No parties found with this name", []);
     }
@@ -180,7 +188,7 @@ module.exports.getPartiesByName = async (req, res) => {
     return successResponse(
       res,
       "Parties fetched successfully",
-      parties
+      normalizedParties
     );
   } catch (error) {
     return errorResponse(res, "Error fetching parties: " + error.message);
