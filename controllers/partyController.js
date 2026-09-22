@@ -351,8 +351,10 @@ module.exports.createParty = async (req, res) => {
     });
 
     await incrementAreaPartyCount(areaId);
+    // normalize area to return area name instead of raw ObjectId
+    const normalizedParty = await normalizePartyArea(newParty);
 
-    return successResponse(res, "Party created successfully", newParty);
+    return successResponse(res, "Party created successfully", normalizedParty);
   } catch (error) {
     console.log('error in create party', error.message);
     

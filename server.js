@@ -15,6 +15,7 @@ const db = require("./config/mongodb-cpnnection");
 
 const allowedOrigins = [
     "http://localhost:5173",
+    "http://localhost:4173",
     "https://mstr-ledger.netlify.app"
 ];
 
