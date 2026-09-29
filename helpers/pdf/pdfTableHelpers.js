@@ -3,6 +3,29 @@ const columns = require("./pdfColumns");
 
 
 const PAGE_BOTTOM = 750;
+const ROW_HEIGHT = 23;
+const TOTALS_BLOCK_HEIGHT = 55;
+
+const ensureSpaceForRow = (doc, y) => {
+    if (y + ROW_HEIGHT > PAGE_BOTTOM) {
+        doc.addPage();
+        y = 50;
+        y = drawTableHeader(doc, y);
+    }
+
+    return y;
+};
+
+const ensureSpaceForTotals = (doc, y) => {
+    if (y + TOTALS_BLOCK_HEIGHT > PAGE_BOTTOM) {
+        doc.addPage();
+        y = 50;
+        y = drawTableHeader(doc, y);
+    }
+
+    return y;
+};
+
 const drawTableHeader = (doc, y) => {
 
     doc
@@ -82,22 +105,7 @@ const drawTransactionRow = (
     txn
 ) => {
 
-    // ------------------------------------
-    // New page if required
-    // ------------------------------------
-
-    if (y >= PAGE_BOTTOM) {
-
-        doc.addPage();
-
-        y = 50;
-
-        y = drawTableHeader(
-            doc,
-            y
-        );
-
-    }
+    y = ensureSpaceForRow(doc, y);
 
     doc
         .font("Helvetica")
@@ -169,15 +177,7 @@ const drawTotalsRow = (
     closingBalance
 ) => {
 
-    if (y >= PAGE_BOTTOM - 40) {
-
-        doc.addPage();
-
-        y = 50;
-
-        // Draw header on new page
-        y = drawTableHeader(doc, y);
-    }
+    y = ensureSpaceForTotals(doc, y);
 
     y += 10;
 

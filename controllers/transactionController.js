@@ -239,8 +239,7 @@ module.exports.exportTransactionsPdf = async (req, res) => {
 
         const doc = new PDFDocument({
             margin: 50,
-            size: "A4",
-            bufferPages: true
+            size: "A4"
         });
 
         res.setHeader("Content-Type", "application/pdf");
@@ -353,40 +352,6 @@ module.exports.exportTransactionsPdf = async (req, res) => {
                 ? transactions[transactions.length - 1].balance
                 : 0
         );
-
-        // --------------------------------------
-        // Page Numbers
-        // --------------------------------------
-
-        const range = doc.bufferedPageRange();
-
-        for (
-            let i = range.start;
-            i < range.start + range.count;
-            i++
-        ) {
-
-            doc.switchToPage(i);
-
-            doc.save();
-
-            doc
-                .font("Helvetica")
-                .fontSize(9)
-                .fillColor("gray")
-                .text(
-                    `Page ${i + 1} of ${range.count}`,
-                    0,
-                    doc.page.height - 40,
-                    {
-                        width: doc.page.width,
-                        align: "center",
-                        lineBreak: false
-                    }
-                );
-
-            doc.restore();
-        }
 
         doc.end();
     } catch (error) {
