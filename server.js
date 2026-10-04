@@ -8,6 +8,7 @@ const transactionRouter = require("./routes/transactionRouter");
 const partyRouter = require("./routes/partyRoutes");
 const areaRouter = require("./routes/areaRoutes");
 const authRouter = require("./routes/authenticationRoutes");
+const reportRouter = require("./routes/reportRoutes");
 
 const app = express();
 
@@ -72,6 +73,7 @@ app.use("/api/transaction", transactionRouter);
 app.use("/api/party", partyRouter);
 app.use("/api/area", areaRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/report", reportRouter);
 
 const PORT = process.env.PORT || 3000;
 
