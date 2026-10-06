@@ -312,16 +312,26 @@ module.exports.createParty = async (req, res) => {
     }
 
     const resolvedUser = user || new mongoose.Types.ObjectId().toString();
+    const trimmedAreaName = typeof area === "string" ? area.trim() : "";
 
     let areaId = area;
 
-    if (typeof area === "string" && !area.match(/^[0-9a-fA-F]{24}$/)) {
-      const createdArea = await createAreaIfNotExists(area, resolvedUser, `${area} area`);
+    if (trimmedAreaName && typeof area === "string" && !area.match(/^[0-9a-fA-F]{24}$/)) {
+      const existingArea = await areaModel.findOne({
+        user,
+        name: { $regex: `^${escapeRegex(trimmedAreaName)}$`, $options: "i" }
+      });
+
+      if (existingArea) {
+        return badRequestResponse(res, "Area already exist, please select from dropdown");
+      }
+
+      const createdArea = await createAreaIfNotExists(trimmedAreaName, resolvedUser, `${trimmedAreaName} area`);
       areaId = createdArea._id;
     } else {
       const areaExists = await areaModel.findById(area);
-      if (!areaExists) {
-        const createdArea = await createAreaIfNotExists(area, resolvedUser, `${area} area`);
+      if (!areaExists && trimmedAreaName) {
+        const createdArea = await createAreaIfNotExists(trimmedAreaName, resolvedUser, `${trimmedAreaName} area`);
         areaId = createdArea._id;
       }
     }
@@ -351,7 +361,6 @@ module.exports.createParty = async (req, res) => {
     });
 
     await incrementAreaPartyCount(areaId);
-    // normalize area to return area name instead of raw ObjectId
     const normalizedParty = await normalizePartyArea(newParty);
 
     return successResponse(res, "Party created successfully", normalizedParty);

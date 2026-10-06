@@ -7,6 +7,8 @@ const escapeRegex = (value) => {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
 
+const normalizeAreaName = (value = "") => String(value || "").trim();
+
 module.exports.syncAreaPartyCount = async (areaIdentifier, delta = 1) => {
     if (!areaIdentifier) return;
 
@@ -42,19 +44,25 @@ module.exports.createArea = async (req, res) => {
     const user = req.user.userId;
     try {
         const { name, description, active } = req.body;
+        const trimmedName = normalizeAreaName(name);
+
+        if (!trimmedName) {
+            return badRequestResponse(res, "Area name is required");
+        }
 
         const resolvedUser = user || new mongoose.Types.ObjectId().toString();
 
-        const existingArea = await areaModel.findOne({user,
-            name: { $regex: `^${escapeRegex(name)}$`, $options: "i" }
+        const existingArea = await areaModel.findOne({
+            user,
+            name: { $regex: `^${escapeRegex(trimmedName)}$`, $options: "i" }
         });
 
         if (existingArea) {
-            return badRequestResponse(res, "Area with this name already exists");
+            return badRequestResponse(res, "Area Name already exist");
         }
 
         const newArea = await areaModel.create({
-            name,
+            name: trimmedName,
             description,
             parties: 0,
             active,
@@ -141,7 +149,7 @@ module.exports.updateArea = async (req, res) => {
 
         return successResponse(res, "Area updated successfully", updatedArea);
     } catch (error) {
-        return errorResponse(res, "Error updating area: " + error.message);
+        return errorResponse(res, "Error creating area: " + error.message);
     }
 };
 
@@ -149,13 +157,15 @@ module.exports.deleteArea = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const deletedArea = await areaModel.findByIdAndDelete(id);
+        const deletedArea = await areaModel.findById(id);
 
         if (!deletedArea) {
             return errorResponse(res, "Area not found");
         }
 
-        return successResponse(res, "Area deleted successfully", deletedArea);
+        const removedArea = await areaModel.findByIdAndDelete(id);
+
+        return successResponse(res, "Area deleted successfully", removedArea);
     } catch (error) {
         return errorResponse(res, "Error deleting area: " + error.message);
     }
@@ -167,9 +177,15 @@ module.exports.createAreaIfNotExists = async (areaName, userId = null, descripti
     const normalizedName = String(areaName).trim();
     const resolvedUser = userId || new mongoose.Types.ObjectId().toString();
 
-    const existingArea = await areaModel.findOne({
+    const existingAreaQuery = {
         name: { $regex: `^${escapeRegex(normalizedName)}$`, $options: "i" }
-    });
+    };
+
+    if (resolvedUser) {
+        existingAreaQuery.user = resolvedUser;
+    }
+
+    const existingArea = await areaModel.findOne(existingAreaQuery);
 
     if (existingArea) {
         return existingArea;
